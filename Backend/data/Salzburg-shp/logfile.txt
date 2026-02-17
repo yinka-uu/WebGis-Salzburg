@@ -1,0 +1,60 @@
+File:
+  Name: /data/bbbike/projects/bbbike/osm/Salzburg/Salzburg.osm.pbf
+  Format: PBF
+  Compression: none
+  Size: 69647079
+Header:
+  Bounding boxes:
+    (12.521,47.536,13.696,48.037)
+  With history: no
+  Options:
+    generator=https://download.BBBike.org
+    osmosis_replication_timestamp=2026-02-13T23:00:00Z
+    pbf_dense_nodes=true
+    pbf_optional_feature_0=Sort.Type_then_ID
+    sorting=Type_then_ID
+    timestamp=2026-02-13T23:00:00Z
+osmium2shape version osmium2shape-1.0
+Memory used for node coordinates storage (approximate):
+  for positive IDs: 281 MiB
+  for negative IDs: 16463 MiB
+Ignoring illegal geometry for way 691391033.
+Ignoring illegal geometry for way 805909267.
+Ignoring illegal geometry for way 1009162146.
+Ignoring illegal geometry for way 1009171689.
+Ignoring illegal geometry for way 1116547480.
+Ignoring illegal geometry for way 1217387289.
+Ignoring illegal geometry for way 1260624895.
+Ignoring illegal geometry for way 1316856421.
+Ignoring illegal geometry for way 1320034210.
+Ignoring illegal geometry for way 1320034211.
+Ignoring illegal geometry for way 1320034217.
+Ignoring illegal geometry for way 1320034221.
+Ignoring illegal geometry for way 1320034222.
+Ignoring illegal geometry for way 1320034223.
+Ignoring illegal geometry for way 1320034230.
+Ignoring illegal geometry for way 1320034238.
+Ignoring illegal geometry for way 1320034240.
+Ignoring illegal geometry for way 1320034245.
+Ignoring illegal geometry for way 1320034248.
+Ignoring illegal geometry for way 1320034250.
+Ignoring illegal geometry for way 1320034256.
+Ignoring illegal geometry for way 1320034262.
+Ignoring illegal geometry for way 1320034263.
+Ignoring illegal geometry for way 1320034265.
+Ignoring illegal geometry for way 1320034266.
+Ignoring illegal geometry for way 1320034271.
+Ignoring illegal geometry for way 1320034282.
+Ignoring illegal geometry for way 1320034284.
+Ignoring illegal geometry for way 1320034287.
+Ignoring illegal geometry for way 1320034290.
+Ignoring illegal geometry for way 1320034292.
+Ignoring illegal geometry for way 1320034295.
+Ignoring illegal geometry for way 1320034303.
+Ignoring illegal geometry for way 1320034306.
+Ignoring illegal geometry for way 1320034308.
+Ignoring illegal geometry for way 1320034317.
+Ignoring illegal geometry for way 1320034318.
+Ignoring illegal geometry for way 1320034326.
+Ignoring illegal geometry for way 1320034331.
+Ignoring illegal geometry for way 1371604285.

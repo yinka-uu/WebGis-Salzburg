@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Salzburg WebGIS - With Analysis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 500px; }
+        .panel { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: white; 
+            padding: 15px; 
+            z-index: 1000; 
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            width: 250px;
+        }
+        button { 
+            width: 100%; 
+            padding: 8px; 
+            margin: 5px 0; 
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        select { width: 100%; padding: 8px; margin: 5px 0; }
+        .results { margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="panel">
+        <h3>🔧 Analysis Tools</h3>
+        
+        <h4>📍 Buffer Analysis</h4>
+        <select id="bufferType">
+            <option value="all">All Landmarks</option>
+            <option value="church">Churches</option>
+            <option value="museum">Museums</option>
+            <option value="park">Parks</option>
+        </select>
+        <select id="bufferDist">
+            <option value="100">100 meters</option>
+            <option value="200">200 meters</option>
+            <option value="500">500 meters</option>
+            <option value="1000">1 km</option>
+        </select>
+        <button onclick="runBufferAnalysis()">Run Buffer Analysis</button>
+        
+        <h4>🎯 Nearest Service</h4>
+        <button onclick="startNearest()">Click on Map</button>
+        
+        <h4>📏 Measure Distance</h4>
+        <button onclick="startMeasure()">Draw Line</button>
+        
+        <div class="results" id="results">
+            <p>Click a tool to start</p>
+        </div>
+        
+        <button onclick="clearAll()" style="background: #e74c3c;">Clear All</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([47.8095, 13.0550], 14);
+        
+        // Basemap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'OpenStreetMap'
+        }).addTo(map);
+        
+        // Layers for drawings
+        const drawnItems = L.featureGroup().addTo(map);
+        const markers = L.featureGroup().addTo(map);
+        
+        // Salzburg landmarks (real data)
+        const landmarks = [
+            {name: "Salzburg Cathedral", lat: 47.798, lng: 13.047, type: "church"},
+            {name: "Mozart's Birthplace", lat: 47.800, lng: 13.044, type: "museum"},
+            {name: "Mirabell Palace", lat: 47.806, lng: 13.042, type: "palace"},
+            {name: "St. Peter's Abbey", lat: 47.796, lng: 13.045, type: "church"},
+            {name: "Kapuzinerberg", lat: 47.807, lng: 13.057, type: "park"},
+            {name: "Mönchsberg", lat: 47.793, lng: 13.035, type: "park"},
+            {name: "Salzach River", lat: 47.801, lng: 13.048, type: "river"},
+            {name: "University", lat: 47.795, lng: 13.048, type: "school"},
+            {name: "Mozarteum", lat: 47.804, lng: 13.044, type: "music"},
+            {name: "Getreidegasse", lat: 47.799, lng: 13.043, type: "shopping"}
+        ];
+        
+        // Add markers to map
+        landmarks.forEach(l => {
+            let color = "#FF4444";
+            if (l.type === "park") color = "#33CC33";
+            else if (l.type === "river") color = "#3366FF";
+            else if (l.type === "museum" || l.type === "palace") color = "#FF9933";
+            else if (l.type === "church") color = "#FF44AA";
+            
+            const marker = L.circleMarker([l.lat, l.lng], {
+                radius: 8,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.8
+            }).bindPopup(`<b>${l.name}</b><br>Type: ${l.type}`);
+            
+            marker.addTo(markers);
+        });
+        
+        // Track measurements
+        let measurePoints = [];
+        let measureLine = null;
+        
+        // ========== BUFFER ANALYSIS ==========
+        window.runBufferAnalysis = function() {
+            const type = document.getElementById('bufferType').value;
+            const dist = parseInt(document.getElementById('bufferDist').value);
+            
+            // Clear previous buffers
+            drawnItems.clearLayers();
+            
+            // Filter landmarks by type
+            let targets = landmarks;
+            if (type !== 'all') {
+                targets = landmarks.filter(l => l.type === type);
+            }
+            
+            // Create buffers
+            targets.forEach(l => {
+                const buffer = L.circle([l.lat, l.lng], {
+                    radius: dist,
+                    color: '#3498db',
+                    fillColor: '#3498db',
+                    fillOpacity: 0.2,
+                    weight: 1
+                }).addTo(drawnItems);
+                
+                buffer.bindPopup(`Buffer around ${l.name}`);
+            });
+            
+            // Calculate total area
+            const area = targets.length * Math.PI * dist * dist / 1000000;
+            
+            document.getElementById('results').innerHTML = `
+                <h4>✅ Buffer Analysis Complete</h4>
+                <p>Type: ${type}</p>
+                <p>Distance: ${dist}m</p>
+                <p>Features: ${targets.length}</p>
+                <p>Total area: ${area.toFixed(2)} km²</p>
+            `;
+        };
+        
+        // ========== NEAREST SERVICE ==========
+        window.startNearest = function() {
+            document.getElementById('results').innerHTML = '<p>Click on the map to find nearest landmarks</p>';
+            
+            map.once('click', function(e) {
+                // Calculate distances to all landmarks
+                const distances = landmarks.map(l => {
+                    const dist = turf.distance(
+                        [e.latlng.lng, e.latlng.lat],
+                        [l.lng, l.lat],
+                        {units: 'meters'}
+                    );
+                    return {...l, distance: dist};
+                });
+                
+                // Sort by distance
+                distances.sort((a, b) => a.distance - b.distance);
+                
+                // Show top 3
+                let html = '<h4>📍 Nearest Landmarks</h4>';
+                for (let i = 0; i < 3; i++) {
+                    html += `<p><b>${distances[i].name}</b>: ${distances[i].distance.toFixed(0)}m</p>`;
+                }
+                
+                // Add marker at click point
+                L.marker(e.latlng).addTo(drawnItems)
+                    .bindPopup('Selected point').openPopup();
+                
+                document.getElementById('results').innerHTML = html;
+            });
+        };
+        
+        // ========== MEASURE DISTANCE ==========
+        window.startMeasure = function() {
+            measurePoints = [];
+            if (measureLine) drawnItems.removeLayer(measureLine);
+            
+            document.getElementById('results').innerHTML = '<p>Click first point on map</p>';
+            
+            map.once('click', function(e1) {
+                measurePoints.push(e1.latlng);
+                L.marker(e1.latlng).addTo(drawnItems).bindPopup('Point 1').openPopup();
+                
+                document.getElementById('results').innerHTML = '<p>Click second point on map</p>';
+                
+                map.once('click', function(e2) {
+                    measurePoints.push(e2.latlng);
+                    L.marker(e2.latlng).addTo(drawnItems).bindPopup('Point 2').openPopup();
+                    
+                    // Draw line
+                    measureLine = L.polyline([e1.latlng, e2.latlng], {
+                        color: '#e74c3c',
+                        weight: 3
+                    }).addTo(drawnItems);
+                    
+                    // Calculate distance
+                    const dist = turf.distance(
+                        [e1.latlng.lng, e1.latlng.lat],
+                        [e2.latlng.lng, e2.latlng.lat],
+                        {units: 'meters'}
+                    );
+                    
+                    document.getElementById('results').innerHTML = `
+                        <h4>📏 Distance</h4>
+                        <p>${dist.toFixed(1)} meters</p>
+                        <p>${(dist/1000).toFixed(2)} kilometers</p>
+                    `;
+                });
+            });
+        };
+        
+        // ========== CLEAR ALL ==========
+        window.clearAll = function() {
+            drawnItems.clearLayers();
+            document.getElementById('results').innerHTML = '<p>Click a tool to start</p>';
+        };
+        
+        console.log("✅ Advanced test loaded with ${landmarks.length} landmarks");
+    </script>
+</body>
+</html>

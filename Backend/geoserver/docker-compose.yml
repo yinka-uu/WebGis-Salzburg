@@ -1,0 +1,70 @@
+name: salzburg-webgis
+
+services:
+  postgis:
+    image: postgis/postgis:15-3.4
+    container_name: salzburg_postgis
+    environment:
+      POSTGRES_DB: salzburg_gis
+      POSTGRES_USER: webgis_user
+      POSTGRES_PASSWORD: salzburg2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - gis_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webgis_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  geoserver:
+    image: docker.osgeo.org/geoserver:2.24.x
+    container_name: salzburg_geoserver
+    environment:
+      - GEOSERVER_DATA_DIR=/opt/geoserver/data_dir
+      - INITIAL_MEMORY=2G
+      - MAXIMUM_MEMORY=4G
+      - GEOSERVER_ADMIN_USER=admin
+      - GEOSERVER_ADMIN_PASSWORD=geoserver2024
+    ports:
+      - "8080:8080"
+    volumes:
+      - geoserver_data:/opt/geoserver/data_dir
+    networks:
+      - gis_network
+    depends_on:
+      postgis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: salzburg_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: admin2024
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - gis_network
+    depends_on:
+      postgis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgis_data:
+  geoserver_data:
+  pgadmin_data:
+
+networks:
+  gis_network:
+    driver: bridge
