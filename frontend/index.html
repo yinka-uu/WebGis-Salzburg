@@ -1,131 +1,281 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Salzburg WebGIS - Urban Management Platform</title>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Salzburg Urban WebGIS</title>
 
-    <!-- Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- OpenLayers — the mapping engine -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
 
-    <!-- Font Awesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <!-- Turf.js — client-side geoprocessing (buffer, distance, nearest) -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css" />
-  </head>
-  <body>
-    <div id="app">
-      <!-- Header -->
-      <header>
-        <div class="logo">
-          <i class="fas fa-map-marked-alt"></i>
-          <h1>Salzburg <span>WebGIS</span></h1>
-        </div>
-        <nav>
-          <button class="nav-btn active" onclick="showTool('map')">
-            <i class="fas fa-map"></i> <span>Map</span>
-          </button>
-          <button class="nav-btn" onclick="showTool('layers')">
-            <i class="fas fa-layer-group"></i> <span>Layers</span>
-          </button>
-          <button class="nav-btn" onclick="showTool('analysis')">
-            <i class="fas fa-chart-line"></i> <span>Analysis</span>
-          </button>
-          <button class="nav-btn" onclick="showTool('query')">
-            <i class="fas fa-search"></i> <span>Query</span>
-          </button>
-          <button class="nav-btn" onclick="showTool('about')">
-            <i class="fas fa-info-circle"></i> <span>About</span>
-          </button>
-        </nav>
-      </header>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 
-      <!-- Main Container -->
-      <div class="main-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-          <div class="sidebar-header">
-            <h2>
-              <i class="fas fa-tools"></i>
-              <span id="tool-title">🗺️ Map Tools</span>
-            </h2>
-            <button onclick="toggleSidebar()">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <div class="sidebar-content" id="sidebarContent">
-            <!-- Content loaded dynamically -->
-            <div class="spinner"></div>
-            <p style="text-align: center">Loading tools...</p>
-          </div>
-        </aside>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
 
-        <!-- Map Container -->
-        <div class="map-container">
-          <div id="map"></div>
+<!-- ═══════════════════════════════════════════════
+     HEADER
+════════════════════════════════════════════════ -->
+<header id="header">
+  <div class="logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <polygon points="14,2 26,8 26,20 14,26 2,20 2,8" fill="none" stroke="#00d4aa" stroke-width="2"/>
+      <circle cx="14" cy="14" r="4" fill="#00d4aa"/>
+      <line x1="14" y1="2"  x2="14" y2="10" stroke="#00d4aa" stroke-width="1.5"/>
+      <line x1="14" y1="18" x2="14" y2="26" stroke="#00d4aa" stroke-width="1.5"/>
+      <line x1="2"  y1="8"  x2="9"  y2="12" stroke="#00d4aa" stroke-width="1.5"/>
+      <line x1="19" y1="16" x2="26" y2="20" stroke="#00d4aa" stroke-width="1.5"/>
+      <line x1="26" y1="8"  x2="19" y2="12" stroke="#00d4aa" stroke-width="1.5"/>
+      <line x1="9"  y1="16" x2="2"  y2="20" stroke="#00d4aa" stroke-width="1.5"/>
+    </svg>
+    <div>
+      <div class="logo-name">Salzburg WebGIS</div>
+      <div class="logo-sub">Urban Management Interface</div>
+    </div>
+  </div>
 
-          <!-- Map Controls -->
-          <div class="map-controls">
-            <button id="zoomIn" class="control-btn" title="Zoom In">
-              <i class="fas fa-plus"></i>
-            </button>
-            <button id="zoomOut" class="control-btn" title="Zoom Out">
-              <i class="fas fa-minus"></i>
-            </button>
-            <button id="fullscreen" class="control-btn" title="Fullscreen">
-              <i class="fas fa-expand"></i>
-            </button>
-            <button id="locateMe" class="control-btn" title="Find my location">
-              <i class="fas fa-crosshairs"></i>
-            </button>
-          </div>
+  <nav class="mainnav">
+    <button class="nb active" data-panel="layers"   onclick="switchPanel('layers')">Layers</button>
+    <button class="nb"        data-panel="analysis" onclick="switchPanel('analysis')">Analysis</button>
+    <button class="nb"        data-panel="query"    onclick="switchPanel('query')">Query</button>
+    <button class="nb"        data-panel="about"    onclick="switchPanel('about')">About</button>
+  </nav>
 
-          <!-- Coordinates Display -->
-          <div class="coordinates" id="coordinates">Loading map...</div>
-        </div>
+  <!-- GeoServer connection indicator -->
+  <div id="gsStatus" class="gs-badge gs-checking">
+    <span class="gs-dot"></span>
+    <span id="gsLabel">Connecting…</span>
+  </div>
+
+  <div id="coordDisplay" class="coord-display">—</div>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════
+     BODY LAYOUT
+════════════════════════════════════════════════ -->
+<div id="appBody">
+
+  <!-- ── SIDEBAR ── -->
+  <aside id="sidebar">
+
+    <!-- LAYERS PANEL -->
+    <div class="panel active" id="panel-layers">
+      <div class="panel-head">
+        <h2>Layer Manager</h2>
+        <p>Toggle map layers on or off. All data served from GeoServer WMS.</p>
       </div>
 
-      <!-- Legend -->
-      <div class="legend" id="legend">
-        <h3><i class="fas fa-palette"></i> Map Legend</h3>
-        <div class="legend-items">
-          <div class="legend-item">
-            <span class="legend-color" style="background: #ff4444"></span>
-            <span>Religious Buildings</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-color" style="background: #ff9933"></span>
-            <span>Museums & Culture</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-color" style="background: #ff66b2"></span>
-            <span>Palaces & Castles</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-color" style="background: #33cc33"></span>
-            <span>Parks & Gardens</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-color" style="background: #3366ff"></span>
-            <span>Water Features</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-color" style="background: #666666"></span>
-            <span>Transportation</span>
-          </div>
-        </div>
+      <div class="section-label">DATA LAYERS</div>
+      <div id="layerList"><div class="loading-row">Loading layers…</div></div>
+
+      <div class="divider"></div>
+
+      <div class="section-label">BASE MAP</div>
+      <div class="basemap-row">
+        <button class="bm active" onclick="changeBasemap('osm',   this)">Street</button>
+        <button class="bm"        onclick="changeBasemap('sat',   this)">Satellite</button>
+        <button class="bm"        onclick="changeBasemap('topo',  this)">Topo</button>
       </div>
+
+      <div class="divider"></div>
+      <button class="btn-primary w100" onclick="resetView()">↺ Reset View to Salzburg</button>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- ANALYSIS PANEL -->
+    <div class="panel" id="panel-analysis">
+      <div class="panel-head">
+        <h2>Spatial Analysis</h2>
+        <p>Geoprocessing tools powered by Turf.js and PostGIS.</p>
+      </div>
 
-    <!-- Main Application -->
-    <script src="js/salzburg-webgis.js"></script>
-  </body>
+      <!-- Tool: Buffer -->
+      <div class="tool-card">
+        <div class="tool-icon">⬡</div>
+        <div class="tool-body">
+          <div class="tool-name">Buffer Analysis</div>
+          <div class="tool-desc">Creates a buffer zone around the map centre. Counts Points of Interest (POIs) inside the zone — useful for measuring service coverage.</div>
+          <label class="field-lbl">Radius</label>
+          <select id="bufferDist" class="field-sel">
+            <option value="100">100 metres</option>
+            <option value="250">250 metres</option>
+            <option value="500" selected>500 metres</option>
+            <option value="1000">1 kilometre</option>
+            <option value="2000">2 kilometres</option>
+          </select>
+          <button class="btn-primary w100" onclick="runBuffer()">▶ Run Buffer Analysis</button>
+        </div>
+      </div>
+
+      <!-- Tool: Distance -->
+      <div class="tool-card">
+        <div class="tool-icon">⟷</div>
+        <div class="tool-body">
+          <div class="tool-name">Measure Distance</div>
+          <div class="tool-desc">Click two points on the map to calculate the straight-line (geodetic) distance between them. Useful for accessibility analysis.</div>
+          <button class="btn-primary w100" id="measureBtn" onclick="startMeasure()">▶ Start Measuring</button>
+        </div>
+      </div>
+
+      <!-- Tool: Nearest -->
+      <div class="tool-card">
+        <div class="tool-icon">◎</div>
+        <div class="tool-body">
+          <div class="tool-name">Nearest POI Finder</div>
+          <div class="tool-desc">Click anywhere on the map. The system finds the closest Point of Interest and draws a line to it — shows travel distance.</div>
+          <button class="btn-primary w100" onclick="startNearest()">▶ Find Nearest POI</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div id="analysisResult" class="result-panel hidden"></div>
+      <button class="btn-ghost w100" onclick="clearAll()">✕ Clear All Results</button>
+    </div>
+
+    <!-- QUERY PANEL -->
+    <div class="panel" id="panel-query">
+      <div class="panel-head">
+        <h2>Query Tools</h2>
+        <p>Click features or search the dataset by category.</p>
+      </div>
+
+      <!-- Tool: Identify -->
+      <div class="tool-card">
+        <div class="tool-icon">🖱</div>
+        <div class="tool-body">
+          <div class="tool-name">Identify Feature</div>
+          <div class="tool-desc">Activates identify mode. Click any shape on the map to see its full attribute information (name, type, ID, etc.) from the database.</div>
+          <button class="btn-primary w100" id="identifyBtn" onclick="startIdentify()">▶ Activate Identify Mode</button>
+        </div>
+      </div>
+
+      <!-- Tool: WMS GetFeatureInfo -->
+      <div class="tool-card">
+        <div class="tool-icon">⚡</div>
+        <div class="tool-body">
+          <div class="tool-name">GeoServer GetFeatureInfo</div>
+          <div class="tool-desc">Queries the GeoServer WMS directly. Click a point to get feature info from the published WMS layer — this uses the GeoServer REST API.</div>
+          <select id="wmsQueryLayer" class="field-sel">
+            <option value="buildings">Buildings</option>
+            <option value="transportation">Roads</option>
+            <option value="green_spaces">Green Spaces</option>
+            <option value="pois">Points of Interest</option>
+          </select>
+          <button class="btn-primary w100" id="wmsBtn" onclick="startWMSQuery()">▶ Query WMS Layer</button>
+        </div>
+      </div>
+
+      <!-- Tool: Category search -->
+      <div class="tool-card">
+        <div class="tool-icon">⬡</div>
+        <div class="tool-body">
+          <div class="tool-name">Search by Category</div>
+          <div class="tool-desc">Filters loaded POI features by type — e.g. find all churches, museums or hospitals loaded from GeoServer WFS.</div>
+          <label class="field-lbl">Category</label>
+          <select id="queryType" class="field-sel">
+            <option value="church">Church / Cathedral</option>
+            <option value="museum">Museum</option>
+            <option value="park">Park / Garden</option>
+            <option value="restaurant">Restaurant / Café</option>
+            <option value="school">School / University</option>
+            <option value="hospital">Hospital / Clinic</option>
+            <option value="hotel">Hotel / Accommodation</option>
+            <option value="station">Train / Bus Station</option>
+          </select>
+          <button class="btn-primary w100" onclick="runSearch()">▶ Search</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div id="queryResult" class="result-panel hidden"></div>
+    </div>
+
+    <!-- ABOUT PANEL -->
+    <div class="panel" id="panel-about">
+      <div class="panel-head">
+        <h2>About</h2>
+        <p>Salzburg Urban WebGIS — Final Project, Z_GIS PLUS University.</p>
+      </div>
+
+      <div class="about-section">
+        <div class="about-title">Project Aim</div>
+        <p class="about-text">To develop an interactive WebGIS interface supporting urban management decision-making in Salzburg, Austria — focusing on spatial analysis, data visualisation, and accessibility tools.</p>
+      </div>
+
+      <div class="about-section">
+        <div class="about-title">Technology Stack</div>
+        <div class="tech-grid">
+          <div class="tech-item"><span class="tech-key">Mapping</span><span class="tech-val">OpenLayers 7</span></div>
+          <div class="tech-item"><span class="tech-key">Geoprocessing</span><span class="tech-val">Turf.js</span></div>
+          <div class="tech-item"><span class="tech-key">Map Server</span><span class="tech-val">GeoServer 2.24</span></div>
+          <div class="tech-item"><span class="tech-key">Database</span><span class="tech-val">PostGIS 15</span></div>
+          <div class="tech-item"><span class="tech-key">Backend</span><span class="tech-val">Python / Flask</span></div>
+          <div class="tech-item"><span class="tech-key">Container</span><span class="tech-val">Docker</span></div>
+          <div class="tech-item"><span class="tech-key">Data</span><span class="tech-val">OpenStreetMap</span></div>
+          <div class="tech-item"><span class="tech-key">Frontend</span><span class="tech-val">HTML5 / CSS3 / JS</span></div>
+        </div>
+      </div>
+
+      <div class="about-section">
+        <div class="about-title">Data Layers</div>
+        <p class="about-text">All layers are served from GeoServer as WMS (for rendering) and WFS (for vector data). Source data: OpenStreetMap Salzburg extract.</p>
+      </div>
+
+      <div class="about-section">
+        <div class="about-title">GeoServer Connection</div>
+        <div class="code-block">WMS: http://localhost:8080/geoserver/salzburg/wms<br>WFS: http://localhost:8080/geoserver/salzburg/ows</div>
+      </div>
+
+      <div id="statsPanel" class="stats-grid"></div>
+    </div>
+
+  </aside>
+
+  <!-- ── MAP ── -->
+  <div id="mapContainer">
+    <div id="map"></div>
+
+    <!-- Zoom / locate controls -->
+    <div id="mapBtns">
+      <button class="mbtn" title="Zoom in"    onclick="map.getView().animate({zoom: map.getView().getZoom()+1, duration:200})">+</button>
+      <button class="mbtn" title="Zoom out"   onclick="map.getView().animate({zoom: map.getView().getZoom()-1, duration:200})">−</button>
+      <button class="mbtn" title="My location" onclick="locateMe()">⊕</button>
+      <button class="mbtn danger" title="Clear" onclick="clearAll()">✕</button>
+    </div>
+
+    <!-- Feature popup -->
+    <div id="popup" class="hidden">
+      <button class="popup-close" onclick="closePopup()">✕</button>
+      <div id="popupInner"></div>
+    </div>
+
+    <!-- Loading screen -->
+    <div id="loadScreen">
+      <div class="load-inner">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <polygon points="24,4 44,14 44,34 24,44 4,34 4,14" fill="none" stroke="#00d4aa" stroke-width="2" opacity="0.3"/>
+          <polygon points="24,4 44,14 44,34 24,44 4,34 4,14" fill="none" stroke="#00d4aa" stroke-width="2" stroke-dasharray="80" stroke-dashoffset="80">
+            <animate attributeName="stroke-dashoffset" from="80" to="0" dur="1.5s" repeatCount="indefinite"/>
+          </polygon>
+          <circle cx="24" cy="24" r="5" fill="#00d4aa" opacity="0.8"/>
+        </svg>
+        <div class="load-title">Salzburg WebGIS</div>
+        <div id="loadMsg">Connecting to GeoServer…</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #appBody -->
+
+<!-- Feature popup overlay element (used by OpenLayers) -->
+<div id="ol-popup" style="display:none"></div>
+
+<script src="js/app.js"></script>
+</body>
 </html>
